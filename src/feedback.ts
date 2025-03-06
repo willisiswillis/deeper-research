@@ -6,7 +6,7 @@ import { systemPrompt } from './prompt';
 
 export async function generateFeedback({
   query,
-  numQuestions = 3,
+  numQuestions = 5,
 }: {
   query: string;
   numQuestions?: number;
@@ -14,7 +14,15 @@ export async function generateFeedback({
   const userFeedback = await generateObject({
     model: o3MiniModel,
     system: systemPrompt(),
-    prompt: `Given the following query from the user, ask some follow up questions to clarify the research direction. Return a maximum of ${numQuestions} questions, but feel free to return less if the original query is clear: <query>${query}</query>`,
+    prompt: `You are a research-oriented AI assistant tasked with clarifying user research queries for precise information retrieval. Given the user's original query enclosed within <query></query>, generate up to ${numQuestions} targeted, insightful follow-up questions that clarify ambiguities or specify the research direction, scope, outcomes, or key parameters required. Only return fewer than ${numQuestions} if the original query is already sufficiently detailed and clear.
+
+Structure your response as:
+1. [First follow-up question]
+2. [Second follow-up question]
+...
+N. [Nth follow-up question]
+
+Original user query: <query>${query}</query>`,
     schema: z.object({
       questions: z
         .array(z.string())
