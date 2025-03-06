@@ -1,5 +1,5 @@
 import FirecrawlApp, { SearchResponse } from '@mendable/firecrawl-js';
-import {generateObject, LanguageModelV1} from 'ai';
+import { generateObject, LanguageModelV1 } from 'ai';
 import { compact } from 'lodash-es';
 import pLimit from 'p-limit';
 import { z } from 'zod';
@@ -231,60 +231,82 @@ export async function writeFinalReport({
     learnings
       .map(learning => `<learning>\n${learning}\n</learning>`)
       .join('\n'),
-    50000, // adjust as per optimal token/performance limits
+    50000, // deliberately chosen optimal token/performance boundary
   );
 
   const res = await generateObject({
     model: model,
-    abortSignal: AbortSignal.timeout(120_000), // increased timeout to handle detailed reports
+    abortSignal: AbortSignal.timeout(120_000), // provides ample time for detailed response generation
     system: systemPrompt(),
     prompt: `
-You are an expert research assistant working collaboratively with a senior analyst. Your goal is explicit—produce a detailed, rigorously structured, highly comprehensive final research report on a clearly defined research prompt, thoroughly integrating all provided learnings from previous search-driven research.
+You are an expert research assistant working closely with a senior analyst. Your task is to prepare a detailed, authoritative, rigorously structured, and comprehensive research report based on the provided prompt and carefully integrating all provided research learnings.
 
-## Explicitly Defined Task:
+Your report must adhere exactly to the following explicit guidelines and requirements:
 
-Generate an expert-level, meticulously detailed, highly structured research report on the provided topic. You must explicitly:
+## Task Definition:
 
-- Integrate ALL provided research learnings thoroughly into your final report without omission. Do not leave out meaningful details or data points.
-- Aim explicitly for a minimum length of 3 to 5 pages (or more if necessary to clearly and exhaustively cover the subject).
-- Maintain optimal readability by clearly dividing the report into logical sections and subsections featuring clearly labeled headings and subheadings.
-- Emphasize clarity, brevity, accuracy, logical coherence, proactive anticipation of user needs, and explicit rigor in logical argumentation.
-- Clearly mark speculative analyses, future predictions, or innovative recommendations explicitly as speculative (e.g., "**Speculative:** ...").
+Write a thoroughly detailed, highly structured, and professional research report clearly addressing the provided research prompt enclosed within <prompt></prompt>. Your report must explicitly prioritize practical applications and suggest contextually relevant courses of action derived objectively from the research findings unless the prompt explicitly specifies a purely theoretical scope.
 
-## Referencing and Sources:
+## Explicit Content Requirements:
 
-- Explicitly cite all references and sources inline exactly where data, quotes, or assertions appear within the written report. Inline citations must precisely provide complete citation details (author/title/source, date/year, DOI or URL when appropriate).
-- Conclude your report with a clearly labeled and neatly formatted "Sources and References" section, explicitly summarizing all citations and references used, formatted clearly for reference convenience.
+1. Clearly integrate all the provided learnings without omission or summarization that omits meaningful details, data points, specific entities (persons, organizations, locations, products, etc.), or explicit metrics (numbers, dates, statistics).
+2. Include careful and explicit citation of all sources inline exactly at points of data usage, quotes, assertions, and claims. Inline citations must include detailed references (author, title or source name, publication date or year, exact DOI or URL when available).
+3. Clearly identify speculative analyses, predictions, innovative ideas, or unverified recommendations explicitly as speculative or hypothesis-driven (for example: "**Speculative:** [...]").
+4. Your final report must clearly anticipate user needs, offering suggestions and insights of additional valuable research directions proactively where relevant.
 
-## Length and Detail Expectation:
+## Explicit Report Structure:
 
-- The final report should aim explicitly for a detailed depth, approximately equivalent to 3 or more printed pages or approximately ~1500-3000 words (flexible, prioritize thoroughness and accuracy over brevity).
-- Err explicitly toward thoroughness, comprehensiveness, explicit clarity, and practical insight over brevity or minimalism. Leaving out critical details or learnings will significantly erode user trust.
+The final report must feature clearly labeled headings organized explicitly in the following structure (or a highly similar logical outline clearly optimized for readability and comprehensiveness):
 
-## Original Research Prompt from user:
+## Title
+
+### Introduction  
+Clearly define and restate the objective, scope, and any explicit context required based on original user prompt.
+
+### Key Insights and Findings  
+Clearly summarize all explicit research learnings provided. Ensure explicit detail, including entities, numeric metrics, specific dates, key statistics, and essential facts. Clearly integrate and explicitly cite inline references.
+
+### Analysis and Discussion  
+Explicitly analyze, interpret, and discuss the significance and implications of each previously captured learning. 
+- Clearly mark speculative or innovative insights explicitly as "Speculative".
+- Provide rigorous analytical details, explicitly supporting arguments logically rather than appealing purely to source authority.
+
+### Practical Applications and Recommended Course of Action (unless explicitly noted as theoretical only in the prompt)  
+Explicitly and clearly outline a set of practical, thoroughly actionable recommendations or strategic courses of action directly informed by the learnings and analysis.
+- Include specific practical steps clearly and explicitly where applicable, proactively anticipating implementation details that might meaningfully benefit the user's understanding or practical application of the research.
+
+### Conclusion  
+Clearly restate essential findings and explicitly summarize core recommendations and the explicitly defined next-steps emerging from your detailed analysis and research.
+
+### Sources and References  
+Clearly formatted final summary list of all explicitly cited sources included inline. Include complete details (author/title/source, date/year, DOI or URL).
+
+## Explicit Length, Depth, and Detail Expectations:
+
+- The report must explicitly strive for depth and comprehensiveness, equivalent to 3+ printed pages (~1500-3000 words minimum). Prioritize explicit thoroughness and detail over brevity. Longer reports are acceptable if necessary for thoroughness.
+- Meticulously proofread content for factual accuracy, spelling, grammar, coherence, and professional readability.
+- Errors significantly erode user trust; explicitly verify factual accuracy and precision.
+
+## Original User Prompt Provided:
 <prompt>${prompt}</prompt>
 
-## Provided Research Learnings (ALL must be explicitly integrated):
+## Research Learnings Provided (ALL explicitly required to be integrated comprehensively and accurately):
 <learnings>
 ${learningsString}
 </learnings>
-
 `,
     schema: z.object({
       reportMarkdown: z
         .string()
         .describe(
-          'Comprehensively structured and explicitly detailed Markdown-formatted research report integrating all presented learnings, inline citations, explicitly flagged speculation, and a references section.',
+          'Detailed, comprehensively structured Markdown-formatted research report integrating clearly articulated analysis, explicitly inclusive of all provided learnings, explicitly cited references inline, proactive research direction suggestions, explicitly flagged speculative analyses (as appropriate), practical recommendations, actionable course of action section, and clearly delineated Sources and References section.',
         ),
     }),
   });
 
-  // Ensure a clearly delineated and formatted "Sources and References" section
-  const sourcesSection = `
-  
-## Sources and References:
-${visitedUrls.map(url => `- ${url}`).join('\n')}
-`;
+  const sourcesSection = `\n\n## Sources and References\n\n${visitedUrls
+    .map(url => `- ${url}`)
+    .join('\n')}`;
 
   log('Final Report Generated', {
     length: res.object.reportMarkdown.length,
