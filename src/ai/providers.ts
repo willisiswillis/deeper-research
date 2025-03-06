@@ -1,6 +1,11 @@
+import {
+  createAnthropic,
+  type AnthropicProviderSettings,
+} from '@ai-sdk/anthropic';
 import { createOpenAI, type OpenAIProviderSettings } from '@ai-sdk/openai';
-import { createAnthropic, type AnthropicProviderSettings } from '@ai-sdk/anthropic';
 import { getEncoding } from 'js-tiktoken';
+import { number } from 'zod';
+
 import { RecursiveCharacterTextSplitter } from './text-splitter';
 
 /**
@@ -14,7 +19,8 @@ interface CustomOpenAIProviderSettings extends OpenAIProviderSettings {
 
 // Fallback environment variable check for OpenAI API key
 if (!process.env.OPENAI_API_KEY) {
-  process.env.OPENAI_API_KEY = process.env.OPENAI_KEY || process.env.openai_api_key;
+  process.env.OPENAI_API_KEY =
+    process.env.OPENAI_KEY || process.env.openai_api_key;
 }
 
 // Create OpenAI provider instance
@@ -34,10 +40,11 @@ export const o3MiniModel = openai(customModel, {
   structuredOutputs: true,
 });
 
-
 // Confirm presence of Anthropic API key from environment variables
 if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
-  throw new Error('Missing ANTHROPIC_API_KEY and OPENAI_API_KEY environment variable.');
+  throw new Error(
+    'Missing ANTHROPIC_API_KEY and OPENAI_API_KEY environment variable.',
+  );
 }
 
 // Instantiate the Anthropic provider with provided API key and default URL
@@ -70,7 +77,12 @@ const encoder = getEncoding('o200k_base'); // Token encoder matched to Claude's 
  * @param contextSize - Maximum allowed token context size. Defaults to environment variable CONTEXT_SIZE or 128_000 tokens.
  * @returns Prompt trimmed within specified token limits.
  */
-export function trimPrompt(prompt: string, contextSize = process.env.ANTHROPIC_API_KEY ? 200000 : 128000): string {
+export function trimPrompt(
+  prompt: string,
+  contextSize = process.env.CONTEXT_SIZE
+    ? Number(process.env.CONTEXT_SIZE)
+    : 128000,
+): string {
   // Returns empty string on empty input
   if (!prompt) return '';
 
@@ -92,7 +104,10 @@ export function trimPrompt(prompt: string, contextSize = process.env.ANTHROPIC_A
   }
 
   // Splits text recursively at optimal boundaries using a helper utility (ensures not cutting mid-sentence)
-  const splitter = new RecursiveCharacterTextSplitter({ chunkSize: targetChunkSize, chunkOverlap: 0 });
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: targetChunkSize,
+    chunkOverlap: 0,
+  });
   const trimmedPrompt = splitter.splitText(prompt)[0] ?? '';
 
   // In rare cases, the splitter may not shorten the prompt sufficiently.
