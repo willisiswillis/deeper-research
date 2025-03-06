@@ -1,10 +1,10 @@
 import FirecrawlApp, { SearchResponse } from '@mendable/firecrawl-js';
-import { generateObject } from 'ai';
+import {generateObject, LanguageModelV1} from 'ai';
 import { compact } from 'lodash-es';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 
-import { o3MiniModel, trimPrompt } from './ai/providers';
+import { claude37Model, o3MiniModel, trimPrompt } from './ai/providers';
 import { OutputManager } from './output-manager';
 import { systemPrompt } from './prompt';
 
@@ -15,6 +15,9 @@ const output = new OutputManager();
 function log(...args: any[]) {
   output.log(...args);
 }
+
+// Define model to use based on env vars
+const model = process.env.USE_CLUADE ? claude37Model : o3MiniModel;
 
 export type ResearchProgress = {
   currentDepth: number;
@@ -53,7 +56,7 @@ async function generateSerpQueries({
   learnings?: string[];
 }) {
   const res = await generateObject({
-    model: o3MiniModel,
+    model: model,
     system: systemPrompt(),
     prompt: `
 You are an expert research assistant specialized in comprehensive, precise, and thorough research support, assisting a highly experienced analyst.  
@@ -134,15 +137,15 @@ async function processSerpResult({
   numFollowUpQuestions?: number;
 }) {
   const contents = compact(result.data.map(item => item.markdown)).map(
-    content => trimPrompt(content, 25_000),
+    content => trimPrompt(content, 50_000),
   );
   log(
     `Ran SERP query "${query}", found ${contents.length} usable content entries`,
   );
 
   const res = await generateObject({
-    model: o3MiniModel,
-    abortSignal: AbortSignal.timeout(60_000),
+    model: model,
+    abortSignal: AbortSignal.timeout(120_000),
     system: systemPrompt(),
     prompt: `
 You are a rigorous and expert-level research assistant working alongside a highly experienced analyst. Your goal is explicitly clear: Given the SERP search results for the original query provided within <query></query>, meticulously analyze the provided contents to summarize actionable research insights ("learnings") and proactively identify precise and explicitly detailed follow-up questions for deeper research.
@@ -228,11 +231,11 @@ export async function writeFinalReport({
     learnings
       .map(learning => `<learning>\n${learning}\n</learning>`)
       .join('\n'),
-    25000, // adjust as per optimal token/performance limits
+    50000, // adjust as per optimal token/performance limits
   );
 
   const res = await generateObject({
-    model: o3MiniModel,
+    model: model,
     abortSignal: AbortSignal.timeout(120_000), // increased timeout to handle detailed reports
     system: systemPrompt(),
     prompt: `
@@ -339,7 +342,7 @@ export async function deepResearch({
       limit(async () => {
         try {
           const result = await firecrawl.search(serpQuery.query, {
-            timeout: 15000,
+            timeout: 45000,
             limit: 5,
             scrapeOptions: { formats: ['markdown'] },
           });
