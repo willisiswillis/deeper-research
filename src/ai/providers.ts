@@ -7,9 +7,14 @@ interface CustomOpenAIProviderSettings extends OpenAIProviderSettings {
   baseURL?: string;
 }
 
+// Set OPENAI_API_KEY for underlying SDK compatibility
+if (!process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_API_KEY = process.env.OPENAI_KEY || process.env.openai_api_key;
+}
+
 // Providers
 const openai = createOpenAI({
-  apiKey: process.env.OPENAI_KEY!,
+  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || process.env.openai_api_key!,
   baseURL: process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1',
 } as CustomOpenAIProviderSettings);
 
